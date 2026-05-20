@@ -68,9 +68,7 @@ DATABASES = {
     }
 }
 
-# AUTH_USER_MODEL set to accounts.User in a later task; not set yet to avoid
-# system check error for missing app. Commented out for now.
-# AUTH_USER_MODEL = "accounts.User"
+AUTH_USER_MODEL = "accounts.User"
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
