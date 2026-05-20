@@ -1,0 +1,32 @@
+# Local design/planning docs (kept out of repo by preference)
+docs/
+
+# Brainstorming visual companion artifacts
+.superpowers/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Django
+*.log
+db.sqlite3
+media/
+staticfiles/
+
+# Env
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
