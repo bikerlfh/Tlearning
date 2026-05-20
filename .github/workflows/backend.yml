@@ -1,0 +1,44 @@
+name: Backend CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: tlearning_test
+          POSTGRES_USER: tlearning
+          POSTGRES_PASSWORD: tlearning
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tlearning"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - name: Lint
+        run: uv run ruff check .
+      - name: Type check
+        run: uv run mypy tlearning accounts decks artifacts api
+        continue-on-error: true  # remove once all apps type-check cleanly
+      - name: Test
+        env:
+          SECRET_KEY: test-secret
+          DB_HOST: 127.0.0.1
+          DB_NAME: tlearning_test
+          DB_USER: tlearning
+          DB_PASSWORD: tlearning
+        run: uv run pytest --cov --cov-report=term-missing
