@@ -23,7 +23,7 @@ INSTALLED_APPS = [
     "accounts",
     # "decks",
     # "artifacts",
-    # "api",
+    "api",
 ]
 
 MIDDLEWARE = [
