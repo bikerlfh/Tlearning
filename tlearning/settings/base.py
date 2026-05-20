@@ -20,7 +20,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "corsheaders",
     # local apps will be added when created in later tasks:
-    # "accounts",
+    "accounts",
     # "decks",
     # "artifacts",
     # "api",
