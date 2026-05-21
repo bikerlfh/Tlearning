@@ -1,4 +1,7 @@
-from django.db.models import Case, IntegerField, Q, Value, When
+from collections import defaultdict
+from datetime import timedelta
+
+from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.utils import timezone
 from rest_framework import generics
 from rest_framework import status as http_status
@@ -9,7 +12,7 @@ from artifacts.models import Artifact
 
 from .enums import FsrsState, ReviewRating, ReviewStatus
 from .fsrs_service import apply_review
-from .models import ReviewState
+from .models import ReviewLog, ReviewState
 from .serializers import QueueCardSerializer
 
 
@@ -93,4 +96,100 @@ class AnswerView(APIView):
                 "next_card": next_serialized,
             },
             status=http_status.HTTP_200_OK,
+        )
+
+
+class StatsView(APIView):
+    """Aggregated review metrics for the current user: due/studied today, streak,
+    90-day heatmap, retention curve (success rate vs reviews-so-far), and
+    type/status distributions across the library."""
+
+    def get(self, request):
+        user = request.user
+        now = timezone.now()
+        today = timezone.localdate()
+        ninety_days_ago = today - timedelta(days=89)
+
+        due_today = _due_queue(user).count()
+
+        logs = ReviewLog.objects.filter(artifact__user=user)
+        today_start = (
+            timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
+            if timezone.is_naive(now)
+            else now.replace(hour=0, minute=0, second=0, microsecond=0)
+        )
+        studied_today = logs.filter(reviewed_at__gte=today_start).count()
+
+        # Heatmap: count reviews per local date for the last 90 days
+        recent = logs.filter(reviewed_at__date__gte=ninety_days_ago).values_list(
+            "reviewed_at",
+            flat=True,
+        )
+        by_day: dict[str, int] = defaultdict(int)
+        for ts in recent:
+            by_day[ts.date().isoformat()] += 1
+        heatmap = []
+        for offset in range(90):
+            d = ninety_days_ago + timedelta(days=offset)
+            heatmap.append({"date": d.isoformat(), "reviews": by_day.get(d.isoformat(), 0)})
+
+        # Streak: count consecutive days ending today with at least one review.
+        streak_days = 0
+        cursor = today
+        while True:
+            if by_day.get(cursor.isoformat(), 0) > 0:
+                streak_days += 1
+                cursor -= timedelta(days=1)
+            else:
+                break
+
+        # Retention curve: bucket each log by (reps_so_far for that artifact at the
+        # time of review). Rating >= 3 counts as "successful recall".
+        # We approximate reps_so_far via row_number per artifact ordered by reviewed_at.
+        per_artifact_seen: dict = defaultdict(int)
+        bucket_total: dict[int, int] = defaultdict(int)
+        bucket_success: dict[int, int] = defaultdict(int)
+        for row in logs.order_by("reviewed_at").values("artifact_id", "rating"):
+            per_artifact_seen[row["artifact_id"]] += 1
+            n = per_artifact_seen[row["artifact_id"]]
+            if n > 30:
+                continue
+            bucket_total[n] += 1
+            if row["rating"] >= 3:
+                bucket_success[n] += 1
+        retention_curve = [
+            {
+                "review_number": n,
+                "rate": (bucket_success[n] / bucket_total[n]) if bucket_total[n] else 0.0,
+                "samples": bucket_total[n],
+            }
+            for n in range(1, 31)
+            if bucket_total[n]
+        ]
+
+        # Distributions
+        type_counts = (
+            Artifact.objects.filter(user=user).values("type").annotate(c=Count("id")).order_by("-c")
+        )
+        type_distribution = {row["type"]: row["c"] for row in type_counts}
+
+        status_counts = (
+            ReviewState.objects.filter(artifact__user=user)
+            .values("status")
+            .annotate(c=Count("id"))
+            .order_by("-c")
+        )
+        status_distribution = {row["status"]: row["c"] for row in status_counts}
+
+        return Response(
+            {
+                "due_today": due_today,
+                "studied_today": studied_today,
+                "streak_days": streak_days,
+                "heatmap": heatmap,
+                "retention_curve": retention_curve,
+                "type_distribution": type_distribution,
+                "status_distribution": status_distribution,
+                "total_learned": status_distribution.get(ReviewStatus.LEARNED, 0),
+            }
         )
