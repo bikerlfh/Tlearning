@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
 from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.utils import timezone
@@ -114,7 +114,7 @@ class StatsView(APIView):
 
         logs = ReviewLog.objects.filter(artifact__user=user)
         today_start = (
-            timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
+            timezone.make_aware(datetime.combine(today, time.min))
             if timezone.is_naive(now)
             else now.replace(hour=0, minute=0, second=0, microsecond=0)
         )

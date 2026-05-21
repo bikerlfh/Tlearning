@@ -38,6 +38,7 @@ SITE_ID = 1
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "tlearning.middleware.RequestIdMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -166,3 +167,48 @@ CELERY_TASK_TRACK_STARTED = True
 VAPID_PUBLIC_KEY = config("VAPID_PUBLIC_KEY", default="")
 VAPID_PRIVATE_KEY = config("VAPID_PRIVATE_KEY", default="")
 VAPID_CONTACT_EMAIL = config("VAPID_CONTACT_EMAIL", default="admin@tlearning.app")
+
+# Sentry — init only when DSN is provided so dev/test runs stay quiet.
+SENTRY_DSN = config("SENTRY_DSN", default="")
+SENTRY_ENV = config("SENTRY_ENV", default="local")
+SENTRY_RELEASE = config("RELEASE", default="")
+SENTRY_TRACES_SAMPLE_RATE = config("SENTRY_TRACES_SAMPLE_RATE", default="0.1", cast=float)
+SENTRY_PROFILES_SAMPLE_RATE = config("SENTRY_PROFILES_SAMPLE_RATE", default="0.1", cast=float)
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.celery import CeleryIntegration
+    from sentry_sdk.integrations.django import DjangoIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        environment=SENTRY_ENV,
+        release=SENTRY_RELEASE or None,
+        integrations=[DjangoIntegration(), CeleryIntegration()],
+        traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,
+        profiles_sample_rate=SENTRY_PROFILES_SAMPLE_RATE,
+        send_default_pii=False,
+    )
+
+LOG_FORMAT = config("LOG_FORMAT", default="text")
+LOG_LEVEL = config("LOG_LEVEL", default="INFO")
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "text": {
+            "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        },
+        "json": {
+            "()": "pythonjsonlogger.json.JsonFormatter",
+            "format": "%(asctime)s %(name)s %(levelname)s %(message)s %(filename)s %(lineno)d",
+        },
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": LOG_FORMAT},
+    },
+    "root": {"handlers": ["console"], "level": LOG_LEVEL},
+    "loggers": {
+        "django.db.backends": {"level": "WARNING"},
+        "celery": {"level": "INFO"},
+    },
+}
