@@ -142,6 +142,20 @@ cd frontend
 pnpm icons   # regenerates public/icon-192.png and public/icon-512.png from public/icon.svg
 ```
 
+### Offline behavior
+
+`/study` works offline:
+
+- Each review answer made while `navigator.onLine === false` is queued in IndexedDB (`tlearning.pending_answers`).
+- The 20 cards loaded on /study mount are cached (`tlearning.cached_queue`) so the deck can be studied without network.
+- When connectivity returns, the queue is flushed automatically — once via the Service Worker's `sync` event (Chrome/Android), and as a fallback once via `window.addEventListener("online")` (Safari/Firefox).
+
+Push notifications post a click-through ping to `POST /api/v1/notifications/{log_id}/clicked` when the user taps the notification — used to track open rates.
+
+### Text-to-speech
+
+`/study` shows a speaker icon next to the lemma and binds the `A` key to it. Uses the browser's built-in Web Speech API (no extra dependency or cost). Voice is picked by mapping the artifact's `target_language` (e.g. `es`) to a BCP-47 tag (`es-ES`).
+
 ## Authentication
 
 Email + password (`POST /api/v1/auth/{signup,login,logout}`) is the default. Two more flows are available:
