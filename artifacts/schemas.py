@@ -53,11 +53,18 @@ class CollocationData(BaseModel):
     examples: list[str] = []
 
 
+class ExpressionData(BaseModel):
+    meaning: str = Field(..., min_length=1)
+    examples: list[str] = []
+    context: str | None = None
+
+
 SCHEMA_BY_TYPE: dict[ArtifactType, type[BaseModel]] = {
     ArtifactType.WORD: WordData,
     ArtifactType.PHRASAL_VERB: PhrasalVerbData,
     ArtifactType.IDIOM: IdiomData,
     ArtifactType.COLLOCATION: CollocationData,
+    ArtifactType.EXPRESSION: ExpressionData,
 }
 
 

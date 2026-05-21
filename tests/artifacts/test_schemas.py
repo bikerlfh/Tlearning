@@ -33,7 +33,3 @@ class TestValidateDataForType:
     def test_word_type_with_invalid_data_raises(self):
         with pytest.raises(ValidationError):
             validate_data_for_type(ArtifactType.WORD, {"meaning": "x"})
-
-    def test_unsupported_type_in_phase1_raises(self):
-        with pytest.raises(NotImplementedError):
-            validate_data_for_type(ArtifactType.EXPRESSION, {"meaning": "x"})

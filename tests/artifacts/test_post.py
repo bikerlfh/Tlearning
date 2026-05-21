@@ -152,3 +152,25 @@ class TestPostArtifact:
         )
         assert response.status_code == 201, response.json()
         assert response.json()["data"]["pattern"] == "verb + noun"
+
+    def test_post_expression_succeeds(self, authed_client, user):
+        from decks.models import Deck
+
+        deck = Deck.objects.filter(user=user, is_default=True).first()
+        response = authed_client.post(
+            "/api/v1/artifacts",
+            {
+                "deck_id": str(deck.id),
+                "type": "expression",
+                "lemma": "cheers",
+                "source_language": "en",
+                "target_language": "es",
+                "data": {
+                    "meaning": "informal toast or casual thanks",
+                    "context": "British informal",
+                },
+            },
+            format="json",
+        )
+        assert response.status_code == 201, response.json()
+        assert response.json()["data"]["context"] == "British informal"
