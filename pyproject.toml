@@ -12,6 +12,7 @@ dependencies = [
     "pydantic>=2.7",
     "django-cors-headers>=4.4",
     "fsrs>=6.3.1",
+    "fastmcp>=3.3.1",
 ]
 
 [dependency-groups]
