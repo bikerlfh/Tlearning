@@ -60,3 +60,48 @@ class TestPostArtifact:
         }
         response = authed_client.post(self.url, payload, format="json")
         assert response.status_code == 400
+
+    def test_post_phrasal_verb_succeeds(self, authed_client, user):
+        from decks.models import Deck
+
+        deck = Deck.objects.filter(user=user, is_default=True).first()
+        response = authed_client.post(
+            "/api/v1/artifacts",
+            {
+                "deck_id": str(deck.id),
+                "type": "phrasal_verb",
+                "lemma": "come up with",
+                "source_language": "en",
+                "target_language": "es",
+                "data": {
+                    "meaning": "to think of (idea/solution)",
+                    "particle": "up with",
+                    "separable": False,
+                    "register": "neutral",
+                    "examples": ["She came up with a brilliant idea."],
+                },
+            },
+            format="json",
+        )
+        assert response.status_code == 201, response.json()
+        assert response.json()["type"] == "phrasal_verb"
+        assert response.json()["data"]["particle"] == "up with"
+
+    def test_post_phrasal_verb_missing_particle_returns_400(self, authed_client, user):
+        from decks.models import Deck
+
+        deck = Deck.objects.filter(user=user, is_default=True).first()
+        response = authed_client.post(
+            "/api/v1/artifacts",
+            {
+                "deck_id": str(deck.id),
+                "type": "phrasal_verb",
+                "lemma": "x",
+                "source_language": "en",
+                "target_language": "es",
+                "data": {"meaning": "x"},
+            },
+            format="json",
+        )
+        assert response.status_code == 400
+        assert "data" in response.json()
