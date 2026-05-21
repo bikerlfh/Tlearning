@@ -1,0 +1,42 @@
+# Version control + CI
+.git
+.github
+.gitignore
+
+# Local environments
+.venv
+.env
+.env.local
+
+# Python caches
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# Django local artifacts
+db.sqlite3
+media/
+staticfiles/
+
+# Brainstorming + planning (gitignored too; never goes in image)
+.superpowers/
+docs/
+
+# IDE
+.vscode
+.idea
+.DS_Store
+
+# Test/dev only
+tests/
+
+# Docker meta
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker-compose.*.yml
+README.md

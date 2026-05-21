@@ -20,6 +20,10 @@ db.sqlite3
 media/
 staticfiles/
 
+# Celery beat schedule (recreated on each beat start)
+celerybeat-schedule
+celerybeat-schedule.db
+
 # Env
 .env
 .env.local
