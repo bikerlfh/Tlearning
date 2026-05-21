@@ -47,10 +47,17 @@ class IdiomData(BaseModel):
     register: RegisterLevel | None = None
 
 
+class CollocationData(BaseModel):
+    meaning: str = Field(..., min_length=1)
+    pattern: str | None = None
+    examples: list[str] = []
+
+
 SCHEMA_BY_TYPE: dict[ArtifactType, type[BaseModel]] = {
     ArtifactType.WORD: WordData,
     ArtifactType.PHRASAL_VERB: PhrasalVerbData,
     ArtifactType.IDIOM: IdiomData,
+    ArtifactType.COLLOCATION: CollocationData,
 }
 
 

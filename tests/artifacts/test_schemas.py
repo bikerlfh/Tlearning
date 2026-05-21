@@ -36,4 +36,4 @@ class TestValidateDataForType:
 
     def test_unsupported_type_in_phase1_raises(self):
         with pytest.raises(NotImplementedError):
-            validate_data_for_type(ArtifactType.COLLOCATION, {"meaning": "x"})
+            validate_data_for_type(ArtifactType.EXPRESSION, {"meaning": "x"})
