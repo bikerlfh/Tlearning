@@ -8,6 +8,7 @@ from artifacts.enums import ArtifactSource, ArtifactType
 from artifacts.models import Artifact
 from artifacts.schemas import validate_data_for_type
 from decks.models import Deck
+from reviews.enums import ReviewStatus
 
 from .auth import current_user
 
@@ -144,3 +145,25 @@ def find_word(query: str, limit: int = 5) -> list[dict[str, Any]]:
         }
         for a in qs
     ]
+
+
+def mark_as_known(lemma: str) -> dict[str, Any]:
+    """Mark a vocabulary item as learned (excluded from review queue).
+    Use when the user says 'I know this' or 'mark X as learned'.
+    Returns {"status": "learned"} on success, {"status": None, "message": ...} if not found.
+    """
+    user = current_user()
+    if user is None:
+        raise LookupError("No authenticated user in context")
+    try:
+        artifact = Artifact.objects.select_related("review_state").get(user=user, lemma=lemma)
+    except Artifact.DoesNotExist:
+        return {"status": None, "message": f"Lemma '{lemma}' not found in your library."}
+    rs = artifact.review_state
+    rs.status = ReviewStatus.LEARNED
+    rs.save(update_fields=["status"])
+    return {
+        "id": str(artifact.id),
+        "lemma": artifact.lemma,
+        "status": rs.status,
+    }
