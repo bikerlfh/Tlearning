@@ -109,6 +109,14 @@ SOCIALACCOUNT_PROVIDERS = {
 
 FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")
 
+# Email — dev prints links to stdout via console backend.
+# Prod overrides EMAIL_BACKEND with Resend SMTP in tlearning/settings/prod.py.
+EMAIL_BACKEND = config(
+    "EMAIL_BACKEND",
+    default="django.core.mail.backends.console.EmailBackend",
+)
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="Tlearning <noreply@tlearning.app>")
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {

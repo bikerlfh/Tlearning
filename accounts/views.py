@@ -1,7 +1,13 @@
 from allauth.socialaccount.models import SocialAccount
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import ValidationError
+from django.core.mail import send_mail
 from django.shortcuts import redirect
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -162,3 +168,69 @@ class GoogleCallbackView(APIView):
         response = redirect(f"{frontend}/dashboard")
         response.delete_cookie("oauth_state")
         return response
+
+
+class PasswordResetRequestView(APIView):
+    """Always returns 204 to avoid leaking which emails are registered."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        email = request.data.get("email", "").strip().lower()
+        user = User.objects.filter(email__iexact=email, is_active=True).first()
+        if user:
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            frontend = settings.FRONTEND_URL.rstrip("/")
+            reset_url = f"{frontend}/reset-password?uid={uid}&token={token}"
+            send_mail(
+                subject="Reset your Tlearning password",
+                message=(
+                    "Someone (hopefully you) requested a password reset. "
+                    f"Click the link to choose a new password:\n\n{reset_url}\n\n"
+                    "If you didn't ask for this, you can safely ignore this email."
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=True,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        uid_b64 = request.data.get("uid", "")
+        token = request.data.get("token", "")
+        password = request.data.get("password", "")
+
+        if not uid_b64 or not token or not password:
+            return Response(
+                {"detail": "uid, token, and password are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            uid = urlsafe_base64_decode(uid_b64).decode()
+            user = User.objects.get(pk=uid)
+        except (User.DoesNotExist, ValueError, UnicodeDecodeError):
+            return Response(
+                {"detail": "Invalid or expired link."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not default_token_generator.check_token(user, token):
+            return Response(
+                {"detail": "Invalid or expired link."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            validate_password(password, user)
+        except ValidationError as exc:
+            return Response({"password": list(exc.messages)}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(password)
+        user.save(update_fields=["password"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
