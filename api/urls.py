@@ -8,4 +8,5 @@ urlpatterns = [
     path("", include("decks.urls")),
     path("", include("artifacts.urls")),
     path("", include("reviews.urls")),
+    path("", include("notifications.urls")),
 ]
