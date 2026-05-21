@@ -103,3 +103,19 @@ curl -X POST http://localhost:8000/api/v1/auth/api-tokens \
 ```
 
 The raw token is shown ONCE in the response. Can't be recovered later — only regenerated.
+
+## Frontend (Next.js PWA)
+
+The user-facing app lives in `frontend/` — a separate Next.js 16 codebase that talks to Django at `NEXT_PUBLIC_API_BASE_URL` (default `http://localhost:8000`).
+
+```bash
+cd frontend
+pnpm install
+pnpm dev
+```
+
+Open <http://localhost:3000>. Sign up, then visit `/settings/api-tokens` to generate a Bearer token for Claude Desktop / Cursor (see the MCP section above).
+
+To enable web push on this device, copy the backend's `VAPID_PUBLIC_KEY` into `frontend/.env.local` as `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and click "Enable push notifications" in `/settings/notifications`.
+
+Builds and dev use webpack explicitly (`--webpack`) because `next-pwa@5` is not yet Turbopack-compatible.
