@@ -1,7 +1,9 @@
 """Celery tasks for delivering push notifications."""
 
+import datetime as dt
 import json
 import logging
+import zoneinfo
 
 from celery import shared_task
 from django.conf import settings
@@ -12,7 +14,7 @@ from accounts.models import User
 from reviews.views import _due_queue
 
 from .enums import NotificationStatus
-from .models import NotificationLog
+from .models import NotificationLog, NotificationPreference
 
 log = logging.getLogger(__name__)
 
@@ -78,3 +80,41 @@ def send_push_notification(self, user_id):
                 sent_at=timezone.now(),
                 status=NotificationStatus.FAILED,
             )
+
+
+def _in_active_window(pref, local_now: dt.datetime) -> bool:
+    if pref.weekdays_only and local_now.weekday() >= 5:
+        return False
+    start, end = pref.quiet_hours_start, pref.quiet_hours_end
+    current = local_now.time()
+    in_quiet = start <= current < end if start < end else current >= start or current < end
+    return not in_quiet
+
+
+def _sent_today_count(user, local_now: dt.datetime) -> int:
+    since = timezone.now() - dt.timedelta(hours=24)
+    return NotificationLog.objects.filter(
+        user=user,
+        status=NotificationStatus.SENT,
+        sent_at__gte=since,
+    ).count()
+
+
+@shared_task
+def schedule_notifications_tick():
+    now = timezone.now()
+    prefs = NotificationPreference.objects.filter(enabled=True).select_related("user")
+    for pref in prefs:
+        try:
+            tz = zoneinfo.ZoneInfo(pref.user.timezone)
+        except (zoneinfo.ZoneInfoNotFoundError, ValueError):
+            tz = zoneinfo.ZoneInfo("UTC")
+        local_now = now.astimezone(tz)
+        if not _in_active_window(pref, local_now):
+            continue
+        last = NotificationLog.objects.filter(user=pref.user).order_by("-sent_at").first()
+        if last and (now - last.sent_at).total_seconds() < pref.min_interval_minutes * 60:
+            continue
+        if _sent_today_count(pref.user, local_now) >= pref.frequency_per_day:
+            continue
+        send_push_notification.delay(pref.user.id)
