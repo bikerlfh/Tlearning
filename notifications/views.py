@@ -1,10 +1,12 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from api.mixins import UserScopedQuerysetMixin
 
 from .models import NotificationPreference, PushSubscription
 from .serializers import NotificationPreferenceSerializer, PushSubscriptionSerializer
+from .tasks import send_push_notification
 
 
 class SubscriptionListCreateView(UserScopedQuerysetMixin, generics.ListCreateAPIView):
@@ -38,3 +40,9 @@ class PreferenceView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return NotificationPreference.objects.get(user=self.request.user)
+
+
+class TestNotificationView(APIView):
+    def post(self, request):
+        send_push_notification.delay(request.user.id)
+        return Response({"detail": "dispatched"}, status=status.HTTP_202_ACCEPTED)
