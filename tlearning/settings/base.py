@@ -15,10 +15,15 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",
     # third-party
     "rest_framework",
     "drf_spectacular",
     "corsheaders",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
     # local apps will be added when created in later tasks:
     "accounts",
     "decks",
@@ -29,6 +34,8 @@ INSTALLED_APPS = [
     "notifications",
 ]
 
+SITE_ID = 1
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -38,6 +45,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "tlearning.urls"
@@ -73,7 +81,33 @@ DATABASES = {
 
 AUTH_USER_MODEL = "accounts.User"
 
-AUTHENTICATION_BACKENDS = ["accounts.backends.EmailBackend"]
+AUTHENTICATION_BACKENDS = [
+    "accounts.backends.EmailBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+# django-allauth (headless: we don't serve allauth's HTML templates; we just use
+# its OAuth helpers via /api/v1/auth/google/* endpoints).
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_USER_MODEL_EMAIL_FIELD = "email"
+ACCOUNT_EMAIL_VERIFICATION = "none"
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "APP": {
+            "client_id": config("GOOGLE_OAUTH_CLIENT_ID", default=""),
+            "secret": config("GOOGLE_OAUTH_CLIENT_SECRET", default=""),
+            "key": "",
+        },
+        "SCOPE": ["profile", "email"],
+        "AUTH_PARAMS": {"access_type": "online"},
+    },
+}
+
+FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -113,6 +147,7 @@ SPECTACULAR_SETTINGS = {
 }
 
 CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="", cast=Csv())
+CORS_ALLOW_CREDENTIALS = True
 
 CELERY_BROKER_URL = config("REDIS_URL", default="redis://127.0.0.1:6379/0")
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
