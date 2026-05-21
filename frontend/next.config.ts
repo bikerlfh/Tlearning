@@ -1,4 +1,6 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
+
 // next-pwa@5 ships no .d.ts; cast through a minimal local type.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const nextPWA = require("next-pwa") as (options: {
@@ -21,4 +23,14 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
 };
 
-export default withPWA(nextConfig);
+// Compose: Sentry wraps PWA wraps the base config. Source map upload runs only
+// when the org/project/auth-token env vars are set (Vercel/Fly secrets).
+export default withSentryConfig(withPWA(nextConfig), {
+  silent: true,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  disableLogger: true,
+  widenClientFileUpload: true,
+  sourcemaps: { deleteSourcemapsAfterUpload: true },
+});
