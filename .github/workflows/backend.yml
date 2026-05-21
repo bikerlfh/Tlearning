@@ -31,9 +31,13 @@ jobs:
       - run: uv sync --frozen
       - name: Lint
         run: uv run ruff check .
-      - name: Type check
-        run: uv run mypy tlearning accounts decks artifacts api
-        continue-on-error: true  # remove once all apps type-check cleanly
+      - name: Type check (advisory until Phase 11b)
+        # Covers all apps including the ones added in later phases. The CI step
+        # is still advisory (continue-on-error) because Phase 7-11 introduced
+        # untyped methods we haven't backfilled yet. Goal: drop the flag once
+        # mypy is green across the whole tree.
+        run: uv run mypy tlearning accounts decks artifacts api mcp_server notifications reviews
+        continue-on-error: true
       - name: Test
         env:
           SECRET_KEY: test-secret

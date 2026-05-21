@@ -156,6 +156,22 @@ Push notifications post a click-through ping to `POST /api/v1/notifications/{log
 
 `/study` shows a speaker icon next to the lemma and binds the `A` key to it. Uses the browser's built-in Web Speech API (no extra dependency or cost). Voice is picked by mapping the artifact's `target_language` (e.g. `es`) to a BCP-47 tag (`es-ES`).
 
+## Observability
+
+### Sentry
+- **Backend** — Set `SENTRY_DSN` (+ optional `SENTRY_ENV`, `SENTRY_TRACES_SAMPLE_RATE`, `SENTRY_PROFILES_SAMPLE_RATE`, `RELEASE`) in `.env`. Empty DSN disables Sentry entirely.
+- **Frontend** — Set `NEXT_PUBLIC_SENTRY_DSN` (+ `NEXT_PUBLIC_SENTRY_ENV`, `NEXT_PUBLIC_SENTRY_RELEASE`) in `frontend/.env.local`. Source-map upload runs only when `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` are present (typically Vercel secrets).
+- **Smoke test (dev only)** — `curl http://localhost:8000/api/v1/_debug/sentry` — the endpoint deliberately raises so you can confirm events are flowing. Returns 404 when `DEBUG=False`.
+
+### Logs
+- `LOG_FORMAT=text` (default) for human-friendly stdout, `LOG_FORMAT=json` for one structured record per line (`python-json-logger`).
+- `LOG_LEVEL=INFO` (override to `DEBUG` or `WARNING` per environment).
+- Every response carries `X-Request-Id: <uuid>` (echoes incoming header if present) — grep against logs or Sentry events; the same id is auto-tagged on the Sentry scope.
+
+### Health
+- `GET /api/v1/health` — 200 `{"status":"ok","checks":{"db":true,"redis":true}}` when everything is up; 503 with the failing check marked `false` otherwise.
+- Wire to your uptime monitor (Better Stack / UptimeRobot / Pingdom) at 60s intervals.
+
 ### Frontend testing
 
 ```bash
