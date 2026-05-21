@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSignup } from "@/hooks/useAuth";
-import { ApiError } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 
 const schema = z.object({
   email: z.string().email(),
@@ -30,6 +30,15 @@ export default function SignupPage() {
   } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
+
+  const startGoogle = async () => {
+    try {
+      const { url } = await api.get<{ url: string }>("/api/v1/auth/google/begin");
+      window.location.href = url;
+    } catch {
+      toast.error("Could not start Google sign-up");
+    }
+  };
 
   const onSubmit = (data: FormData) => {
     const timezone =
@@ -95,6 +104,22 @@ export default function SignupPage() {
         <Button type="submit" className="w-full" disabled={signup.isPending}>
           {signup.isPending ? "Creating account…" : "Sign up"}
         </Button>
+
+        <div className="flex items-center gap-3 text-xs text-slate-400 my-2">
+          <div className="h-px flex-1 bg-slate-200" />
+          <span>or</span>
+          <div className="h-px flex-1 bg-slate-200" />
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={startGoogle}
+        >
+          Continue with Google
+        </Button>
+
         <p className="text-sm text-center">
           Already have an account?{" "}
           <Link href="/login" className="underline">
