@@ -1,9 +1,11 @@
 from django.db.models import Q
 from rest_framework import generics, status
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from accounts.models import ApiToken
 from api.mixins import UserScopedQuerysetMixin
+from reviews.enums import ReviewStatus
 
 from .enums import ArtifactSource
 from .models import Artifact
@@ -70,3 +72,27 @@ class ArtifactDetailView(UserScopedQuerysetMixin, generics.RetrieveUpdateDestroy
         ctx = super().get_serializer_context()
         ctx["user"] = self.request.user
         return ctx
+
+
+class MarkLearnedView(APIView):
+    def post(self, request, pk):
+        try:
+            artifact = Artifact.objects.select_related("review_state").get(id=pk, user=request.user)
+        except Artifact.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        rs = artifact.review_state
+        rs.status = ReviewStatus.LEARNED
+        rs.save(update_fields=["status"])
+        return Response({"status": rs.status}, status=status.HTTP_200_OK)
+
+
+class SuspendView(APIView):
+    def post(self, request, pk):
+        try:
+            artifact = Artifact.objects.select_related("review_state").get(id=pk, user=request.user)
+        except Artifact.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        rs = artifact.review_state
+        rs.status = ReviewStatus.SUSPENDED
+        rs.save(update_fields=["status"])
+        return Response({"status": rs.status}, status=status.HTTP_200_OK)
