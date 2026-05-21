@@ -23,18 +23,50 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const artifactId = event.notification.data && event.notification.data.artifact_id;
-  const url = artifactId ? `/study/${artifactId}` : "/dashboard";
+  const data = event.notification.data || {};
+  const url = data.artifact_id ? `/study/${data.artifact_id}` : "/dashboard";
   event.waitUntil(
-    self.clients
-      .matchAll({ type: "window", includeUncontrolled: true })
-      .then((clients) => {
-        for (const client of clients) {
-          if (client.url.includes(url) && "focus" in client) {
-            return client.focus();
-          }
+    (async () => {
+      // Best-effort click tracking before navigating
+      if (data.log_id) {
+        try {
+          await fetch(`/api/v1/notifications/${data.log_id}/clicked`, {
+            method: "POST",
+            credentials: "include",
+          });
+        } catch (_e) {
+          /* ignore — metric only */
         }
-        return self.clients.openWindow(url);
-      }),
+      }
+      const clients = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      for (const client of clients) {
+        if (client.url.includes(url) && "focus" in client) {
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    })(),
+  );
+});
+
+// Background sync: when the browser regains connectivity, dispatch a message
+// to any open client asking it to flush the IndexedDB-queued review answers.
+// The actual flush runs in the page bundle (service workers can't easily share
+// the IndexedDB helpers + fetch wrappers from the app bundle).
+self.addEventListener("sync", (event) => {
+  if (event.tag !== "flush-answers") return;
+  event.waitUntil(
+    (async () => {
+      const clients = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      for (const client of clients) {
+        client.postMessage({ type: "flush-answers" });
+      }
+    })(),
   );
 });
