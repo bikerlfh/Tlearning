@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import User
-from .serializers import SignupSerializer, UserSerializer
+from .serializers import SignupSerializer, UpdateMeSerializer, UserSerializer
 
 
 class SignupView(generics.CreateAPIView):
@@ -30,3 +30,15 @@ class LogoutView(APIView):
     def post(self, request):
         logout(request)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class MeView(generics.RetrieveUpdateAPIView):
+    serializer_class = UserSerializer
+
+    def get_object(self):
+        return self.request.user
+
+    def get_serializer_class(self):
+        if self.request.method in ("PATCH", "PUT"):
+            return UpdateMeSerializer
+        return UserSerializer

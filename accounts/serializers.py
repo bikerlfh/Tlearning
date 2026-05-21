@@ -11,6 +11,11 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "date_joined"]
 
 
+class UpdateMeSerializer(UserSerializer):
+    class Meta(UserSerializer.Meta):
+        read_only_fields = ["id", "email", "date_joined"]
+
+
 class SignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
 
