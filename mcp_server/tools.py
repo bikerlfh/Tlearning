@@ -2,6 +2,8 @@
 
 from typing import Any, Literal
 
+from django.db.models import Q
+
 from artifacts.enums import ArtifactSource, ArtifactType
 from artifacts.models import Artifact
 from artifacts.schemas import validate_data_for_type
@@ -117,3 +119,28 @@ def remember_word(
         "deck_name": artifact.deck.name,
         "data": artifact.data,
     }
+
+
+def find_word(query: str, limit: int = 5) -> list[dict[str, Any]]:
+    """Search the user's saved vocabulary by lemma or meaning (case-insensitive).
+    Use when the user asks 'have I saved X?' or 'show me what I've learned about Y'.
+    Returns up to `limit` matching artifacts.
+    """
+    user = current_user()
+    if user is None:
+        raise LookupError("No authenticated user in context")
+    qs = (
+        Artifact.objects.filter(user=user)
+        .filter(Q(lemma__icontains=query) | Q(data__meaning__icontains=query))
+        .select_related("deck")[:limit]
+    )
+    return [
+        {
+            "id": str(a.id),
+            "lemma": a.lemma,
+            "type": a.type,
+            "deck_name": a.deck.name,
+            "data": a.data,
+        }
+        for a in qs
+    ]
