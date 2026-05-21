@@ -156,6 +156,25 @@ Push notifications post a click-through ping to `POST /api/v1/notifications/{log
 
 `/study` shows a speaker icon next to the lemma and binds the `A` key to it. Uses the browser's built-in Web Speech API (no extra dependency or cost). Voice is picked by mapping the artifact's `target_language` (e.g. `es`) to a BCP-47 tag (`es-ES`).
 
+### Frontend testing
+
+```bash
+cd frontend
+pnpm test                              # vitest watch mode
+pnpm test:run                          # CI mode (single run)
+pnpm test:coverage                     # HTML report at coverage/index.html
+```
+
+End-to-end (needs `docker compose up -d` postgres+redis+web):
+
+```bash
+pnpm exec playwright install chromium  # one-time
+pnpm exec playwright test
+pnpm exec playwright show-report
+```
+
+CI runs both vitest (`unit` job) and Playwright (`e2e` job) on every PR via `.github/workflows/frontend.yml`.
+
 ## Authentication
 
 Email + password (`POST /api/v1/auth/{signup,login,logout}`) is the default. Two more flows are available:
