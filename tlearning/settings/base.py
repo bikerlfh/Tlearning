@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "artifacts",
     "reviews",
     "api",
+    "mcp_server",
 ]
 
 MIDDLEWARE = [
