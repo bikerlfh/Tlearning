@@ -38,14 +38,25 @@ def send_push_notification(self, user_id):
     if artifact is None:
         return
 
-    payload = {
-        "title": artifact.lemma,
-        "body": _short_meaning(artifact),
-        "data": {"artifact_id": str(artifact.id), "deck_id": str(artifact.deck_id)},
-        "url": f"/study/{artifact.id}",
-    }
-
     for sub in user.push_subscriptions.filter(failure_count__lt=_MAX_FAILURES):
+        # Pre-create the log so its id can travel in the push payload and the
+        # service worker can attribute click-throughs back to this row.
+        notif_log = NotificationLog.objects.create(
+            user=user,
+            artifact=artifact,
+            sent_at=timezone.now(),
+            status=NotificationStatus.PENDING,
+        )
+        payload = {
+            "title": artifact.lemma,
+            "body": _short_meaning(artifact),
+            "data": {
+                "artifact_id": str(artifact.id),
+                "deck_id": str(artifact.deck_id),
+                "log_id": str(notif_log.id),
+            },
+            "url": f"/study/{artifact.id}",
+        }
         try:
             webpush(
                 subscription_info={
@@ -59,12 +70,8 @@ def send_push_notification(self, user_id):
             sub.last_success_at = timezone.now()
             sub.failure_count = 0
             sub.save(update_fields=["last_success_at", "failure_count"])
-            NotificationLog.objects.create(
-                user=user,
-                artifact=artifact,
-                sent_at=timezone.now(),
-                status=NotificationStatus.SENT,
-            )
+            notif_log.status = NotificationStatus.SENT
+            notif_log.save(update_fields=["status"])
         except WebPushException as e:
             log.warning("Web push failed: %s", e)
             response = getattr(e, "response", None)
@@ -74,12 +81,8 @@ def send_push_notification(self, user_id):
             else:
                 sub.failure_count += 1
                 sub.save(update_fields=["failure_count"])
-            NotificationLog.objects.create(
-                user=user,
-                artifact=artifact,
-                sent_at=timezone.now(),
-                status=NotificationStatus.FAILED,
-            )
+            notif_log.status = NotificationStatus.FAILED
+            notif_log.save(update_fields=["status"])
 
 
 def _in_active_window(pref, local_now: dt.datetime) -> bool:

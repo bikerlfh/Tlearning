@@ -1,10 +1,11 @@
-from rest_framework import generics, status
+from django.utils import timezone
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.mixins import UserScopedQuerysetMixin
 
-from .models import NotificationPreference, PushSubscription
+from .models import NotificationLog, NotificationPreference, PushSubscription
 from .serializers import NotificationPreferenceSerializer, PushSubscriptionSerializer
 from .tasks import send_push_notification
 
@@ -46,3 +47,25 @@ class TestNotificationView(APIView):
     def post(self, request):
         send_push_notification.delay(request.user.id)
         return Response({"detail": "dispatched"}, status=status.HTTP_202_ACCEPTED)
+
+
+class NotificationClickedView(APIView):
+    """Idempotent click-through recorder. Hit from the service worker on a
+    `notificationclick` event — the request may not carry a session cookie if
+    the user clicked the OS notification while no tab was open. We accept that
+    and treat it as a best-effort metric: anonymous calls return 204 noop."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, log_id):
+        user = request.user if request.user.is_authenticated else None
+        if user is None:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        try:
+            log = NotificationLog.objects.get(id=log_id, user=user)
+        except NotificationLog.DoesNotExist:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        if not log.clicked_at:
+            log.clicked_at = timezone.now()
+            log.save(update_fields=["clicked_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
