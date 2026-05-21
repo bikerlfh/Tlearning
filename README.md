@@ -119,3 +119,28 @@ Open <http://localhost:3000>. Sign up, then visit `/settings/api-tokens` to gene
 To enable web push on this device, copy the backend's `VAPID_PUBLIC_KEY` into `frontend/.env.local` as `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and click "Enable push notifications" in `/settings/notifications`.
 
 Builds and dev use webpack explicitly (`--webpack`) because `next-pwa@5` is not yet Turbopack-compatible.
+
+## Authentication
+
+Email + password (`POST /api/v1/auth/{signup,login,logout}`) is the default. Two more flows are available:
+
+### Google OAuth
+
+1. Create an OAuth client at <https://console.cloud.google.com/apis/credentials> (type: "Web application").
+2. Authorized JavaScript origins: `http://localhost:8000`, `http://localhost:3000`.
+3. Authorized redirect URI: `http://localhost:8000/api/v1/auth/google/callback`.
+4. Drop the values into `.env`:
+
+```bash
+GOOGLE_OAUTH_CLIENT_ID=...
+GOOGLE_OAUTH_CLIENT_SECRET=...
+FRONTEND_URL=http://localhost:3000
+```
+
+The frontend's "Continue with Google" button on `/login` and `/signup` calls `GET /api/v1/auth/google/begin`, gets the auth URL, redirects the browser to Google, and Google calls back to `/api/v1/auth/google/callback` which logs the user in and redirects to `${FRONTEND_URL}/dashboard`.
+
+Linked providers can be viewed and disconnected from `/settings/account`. Disconnecting your only sign-in method is blocked — set a password first via "Forgot password" if needed.
+
+### Password reset
+
+`POST /api/v1/auth/password-reset/request` always returns 204 (never confirms whether an email exists). In dev, the reset link prints to the Django server's stdout. The frontend pages are `/forgot-password` and `/reset-password`. Email backend defaults to console in dev; in prod (`tlearning.settings.prod`) it switches to Resend SMTP.
