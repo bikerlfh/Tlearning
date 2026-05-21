@@ -1722,6 +1722,7 @@ dependencies = [
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
     { name = "python-decouple" },
+    { name = "uvicorn" },
 ]
 
 [package.dev-dependencies]
@@ -1748,6 +1749,7 @@ requires-dist = [
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pydantic", specifier = ">=2.7" },
     { name = "python-decouple", specifier = ">=3.8" },
+    { name = "uvicorn", specifier = ">=0.47.0" },
 ]
 
 [package.metadata.requires-dev]
