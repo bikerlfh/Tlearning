@@ -1,7 +1,7 @@
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from .models import User
+from .models import ApiToken, User
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -30,3 +30,19 @@ class SignupSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
+
+
+class ApiTokenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ApiToken
+        fields = ["id", "name", "last_used_at", "created_at"]
+        read_only_fields = fields
+
+
+class ApiTokenCreateSerializer(serializers.ModelSerializer):
+    token = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = ApiToken
+        fields = ["id", "name", "token", "created_at"]
+        read_only_fields = ["id", "token", "created_at"]

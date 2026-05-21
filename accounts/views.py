@@ -3,8 +3,17 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts.models import ApiToken
+from accounts.tokens import generate_token, hash_token
+
 from .models import User
-from .serializers import SignupSerializer, UpdateMeSerializer, UserSerializer
+from .serializers import (
+    ApiTokenCreateSerializer,
+    ApiTokenSerializer,
+    SignupSerializer,
+    UpdateMeSerializer,
+    UserSerializer,
+)
 
 
 class SignupView(generics.CreateAPIView):
@@ -42,3 +51,34 @@ class MeView(generics.RetrieveUpdateAPIView):
         if self.request.method in ("PATCH", "PUT"):
             return UpdateMeSerializer
         return UserSerializer
+
+
+class ApiTokenListCreateView(generics.ListCreateAPIView):
+    def get_queryset(self):
+        return ApiToken.objects.filter(user=self.request.user, revoked_at__isnull=True)
+
+    def get_serializer_class(self):
+        return ApiTokenCreateSerializer if self.request.method == "POST" else ApiTokenSerializer
+
+    def create(self, request, *args, **kwargs):
+        name = request.data.get("name", "").strip()
+        if not name:
+            return Response(
+                {"name": ["This field is required."]}, status=status.HTTP_400_BAD_REQUEST
+            )
+        raw = generate_token()
+        token = ApiToken.objects.create(user=request.user, token_hash=hash_token(raw), name=name)
+        data = ApiTokenCreateSerializer(token).data
+        data["token"] = raw  # show raw exactly once
+        return Response(data, status=status.HTTP_201_CREATED)
+
+
+class ApiTokenDeleteView(generics.DestroyAPIView):
+    def get_queryset(self):
+        return ApiToken.objects.filter(user=self.request.user)
+
+    def perform_destroy(self, instance):
+        from django.utils import timezone
+
+        instance.revoked_at = timezone.now()
+        instance.save(update_fields=["revoked_at"])
