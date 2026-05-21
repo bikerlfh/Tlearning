@@ -170,6 +170,41 @@ class GoogleCallbackView(APIView):
         return response
 
 
+class SocialAccountListView(APIView):
+    def get(self, request):
+        rows = SocialAccount.objects.filter(user=request.user)
+        results = [
+            {
+                "id": str(r.id),
+                "provider": r.provider,
+                "uid": r.uid,
+                "email": (r.extra_data or {}).get("email"),
+                "name": (r.extra_data or {}).get("name"),
+                "connected_at": r.date_joined.isoformat() if r.date_joined else None,
+            }
+            for r in rows
+        ]
+        return Response({"count": len(results), "results": results})
+
+
+class SocialAccountDisconnectView(APIView):
+    def post(self, request, pk):
+        account = SocialAccount.objects.filter(user=request.user, pk=pk).first()
+        if not account:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        # Block the user from locking themselves out: require a usable password if this
+        # is their last login method.
+        has_password = request.user.has_usable_password()
+        other_socials = SocialAccount.objects.filter(user=request.user).exclude(pk=pk).exists()
+        if not has_password and not other_socials:
+            return Response(
+                {"detail": "Set a password before disconnecting your only sign-in method."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        account.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class PasswordResetRequestView(APIView):
     """Always returns 204 to avoid leaking which emails are registered."""
 

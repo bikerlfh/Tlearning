@@ -10,6 +10,11 @@ const SECTIONS = [
     desc: "Name, timezone, UI language",
   },
   {
+    href: "/settings/account",
+    title: "Account",
+    desc: "Linked sign-in providers (Google, …)",
+  },
+  {
     href: "/settings/api-tokens",
     title: "API tokens",
     desc: "Bearer tokens for MCP clients",

@@ -11,6 +11,8 @@ from .views import (
     PasswordResetConfirmView,
     PasswordResetRequestView,
     SignupView,
+    SocialAccountDisconnectView,
+    SocialAccountListView,
 )
 
 urlpatterns = [
@@ -24,4 +26,6 @@ urlpatterns = [
     path("google/callback", GoogleCallbackView.as_view()),
     path("password-reset/request", PasswordResetRequestView.as_view()),
     path("password-reset/confirm", PasswordResetConfirmView.as_view()),
+    path("social-accounts", SocialAccountListView.as_view()),
+    path("social-accounts/<int:pk>/disconnect", SocialAccountDisconnectView.as_view()),
 ]
