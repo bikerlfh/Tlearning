@@ -120,6 +120,28 @@ To enable web push on this device, copy the backend's `VAPID_PUBLIC_KEY` into `f
 
 Builds and dev use webpack explicitly (`--webpack`) because `next-pwa@5` is not yet Turbopack-compatible.
 
+### Routes shipped
+
+| Path | Purpose |
+|---|---|
+| `/login`, `/signup` | Cookie session auth (+ Continue with Google) |
+| `/forgot-password`, `/reset-password` | Email-based password reset |
+| `/dashboard` | Greeting, due-today, stat cards, recently added |
+| `/study` | FSRS flashcard mode (Space + 1-4 keyboard, swipe gestures on mobile, accepts `?deck_id=`) |
+| `/library`, `/library/[id]` | Browse + filter + detail/edit (rename, examples, mark learned, suspend, delete) |
+| `/decks`, `/decks/[id]` | CRUD + per-deck study link |
+| `/stats` | KPIs, 90-day heatmap, retention curve, type/status distributions |
+| `/settings` | Hub linking to profile, account (linked providers), api-tokens, integrations, notifications |
+
+Mobile layout (<768px) replaces the sidebar with a bottom tab bar.
+
+### PWA icons
+
+```bash
+cd frontend
+pnpm icons   # regenerates public/icon-192.png and public/icon-512.png from public/icon.svg
+```
+
 ## Authentication
 
 Email + password (`POST /api/v1/auth/{signup,login,logout}`) is the default. Two more flows are available:
