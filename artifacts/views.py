@@ -27,6 +27,10 @@ class ArtifactListCreateView(UserScopedQuerysetMixin, generics.ListCreateAPIView
             qs = qs.filter(deck_id=deck)
         if q := params.get("q"):
             qs = qs.filter(lemma__icontains=q)
+        if src := params.get("source_language"):
+            qs = qs.filter(source_language=src)
+        if tgt := params.get("target_language"):
+            qs = qs.filter(target_language=tgt)
         return qs
 
     def create(self, request, *args, **kwargs):
