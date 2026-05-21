@@ -1,9 +1,14 @@
 from django.db.models import Case, IntegerField, Q, Value, When
 from django.utils import timezone
 from rest_framework import generics
+from rest_framework import status as http_status
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from .enums import FsrsState, ReviewStatus
+from artifacts.models import Artifact
+
+from .enums import FsrsState, ReviewRating, ReviewStatus
+from .fsrs_service import apply_review
 from .models import ReviewState
 from .serializers import QueueCardSerializer
 
@@ -48,3 +53,44 @@ class QueueView(generics.GenericAPIView):
         items = list(qs[:limit])
         serializer = self.get_serializer(items, many=True, context={"request": request})
         return Response({"results": serializer.data, "count": len(serializer.data)})
+
+
+class AnswerView(APIView):
+    def post(self, request, artifact_id):
+        try:
+            artifact = Artifact.objects.select_related("review_state").get(
+                id=artifact_id, user=request.user
+            )
+        except Artifact.DoesNotExist:
+            return Response({"detail": "Not found."}, status=http_status.HTTP_404_NOT_FOUND)
+
+        try:
+            rating = ReviewRating(int(request.data.get("rating", 0)))
+        except (ValueError, TypeError):
+            return Response(
+                {"rating": ["Must be one of 1/2/3/4."]},
+                status=http_status.HTTP_400_BAD_REQUEST,
+            )
+
+        rs = artifact.review_state
+        apply_review(rs, rating)
+
+        next_card = _due_queue(request.user).exclude(artifact=artifact).first()
+        next_serialized = (
+            QueueCardSerializer(next_card, context={"request": request}).data
+            if next_card is not None
+            else None
+        )
+        return Response(
+            {
+                "review_state": {
+                    "state": rs.state,
+                    "status": rs.status,
+                    "due_at": rs.due_at,
+                    "reps": rs.reps,
+                    "lapses": rs.lapses,
+                },
+                "next_card": next_serialized,
+            },
+            status=http_status.HTTP_200_OK,
+        )
