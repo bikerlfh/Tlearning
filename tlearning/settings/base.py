@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "reviews",
     "api",
     "mcp_server",
+    "notifications",
 ]
 
 MIDDLEWARE = [
