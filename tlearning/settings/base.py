@@ -21,7 +21,7 @@ INSTALLED_APPS = [
     "corsheaders",
     # local apps will be added when created in later tasks:
     "accounts",
-    # "decks",
+    "decks",
     # "artifacts",
     "api",
 ]
