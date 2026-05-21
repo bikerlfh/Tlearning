@@ -22,7 +22,7 @@ INSTALLED_APPS = [
     # local apps will be added when created in later tasks:
     "accounts",
     "decks",
-    # "artifacts",
+    "artifacts",
     "api",
 ]
 
