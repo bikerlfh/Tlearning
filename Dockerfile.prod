@@ -1,0 +1,46 @@
+# Production image — same shape as the dev Dockerfile but:
+#   - DJANGO_SETTINGS_MODULE defaults to tlearning.settings.prod
+#   - collectstatic runs at build time (whitenoise serves them at runtime)
+#   - no curl helper (Fly healthchecks use HTTP probes, not shell)
+
+FROM python:3.12-slim AS builder
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev
+
+
+FROM python:3.12-slim AS runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DJANGO_SETTINGS_MODULE=tlearning.settings.prod
+
+COPY . .
+
+# collectstatic needs SECRET_KEY etc. to import settings.prod. Use a throwaway
+# placeholder — these are not persisted in the image, and the real values are
+# injected at runtime via flyctl secrets.
+RUN SECRET_KEY=build-time DATABASE_URL=postgres://x:x@localhost/x \
+    ALLOWED_HOSTS=localhost CORS_ALLOWED_ORIGINS=http://localhost FRONTEND_URL=http://localhost \
+    python manage.py collectstatic --noinput
+
+EXPOSE 8000
+
+CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn tlearning.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --timeout 60 --access-logfile -"]

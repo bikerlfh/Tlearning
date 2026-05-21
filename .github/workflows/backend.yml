@@ -1,0 +1,48 @@
+name: Backend CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: tlearning_test
+          POSTGRES_USER: tlearning
+          POSTGRES_PASSWORD: tlearning
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tlearning"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - name: Lint
+        run: uv run ruff check .
+      - name: Type check (advisory until Phase 11b)
+        # Covers all apps including the ones added in later phases. The CI step
+        # is still advisory (continue-on-error) because Phase 7-11 introduced
+        # untyped methods we haven't backfilled yet. Goal: drop the flag once
+        # mypy is green across the whole tree.
+        run: uv run mypy tlearning accounts decks artifacts api mcp_server notifications reviews
+        continue-on-error: true
+      - name: Test
+        env:
+          SECRET_KEY: test-secret
+          DB_HOST: 127.0.0.1
+          DB_NAME: tlearning_test
+          DB_USER: tlearning
+          DB_PASSWORD: tlearning
+        run: uv run pytest --cov --cov-report=term-missing

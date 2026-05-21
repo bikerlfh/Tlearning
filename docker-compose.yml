@@ -1,0 +1,86 @@
+# Shared env block injected into every app service (web/worker/beat/mcp).
+# Container-internal hostnames (postgres, redis) override the host-side values
+# from `.env` because python-decouple reads OS env vars before the .env file.
+x-app-env: &app-env
+  SECRET_KEY: dev-secret-key-do-not-use-in-prod
+  DEBUG: "True"
+  ALLOWED_HOSTS: "localhost,127.0.0.1,web,0.0.0.0"
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_NAME: tlearning
+  DB_USER: tlearning
+  DB_PASSWORD: tlearning
+  REDIS_URL: redis://redis:6379/0
+  CORS_ALLOWED_ORIGINS: "http://localhost:3000"
+  DJANGO_SETTINGS_MODULE: tlearning.settings.dev
+  VAPID_PUBLIC_KEY: ""
+  VAPID_PRIVATE_KEY: ""
+  VAPID_CONTACT_EMAIL: admin@tlearning.app
+
+# Shared config for app containers: same image, same env, bind-mounted source for
+# hot reload, anonymous volume on /app/.venv so the host's empty .venv (if any)
+# doesn't shadow the image's installed virtualenv.
+x-app-common: &app-common
+  build: .
+  env_file:
+    - path: .env
+      required: false
+  environment: *app-env
+  volumes:
+    - .:/app
+    - /app/.venv
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tlearning
+      POSTGRES_USER: tlearning
+      POSTGRES_PASSWORD: tlearning
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tlearning"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    <<: *app-common
+    command: sh -c "python manage.py migrate --noinput && gunicorn tlearning.wsgi:application --bind 0.0.0.0:8000 --workers 2 --reload --access-logfile -"
+    ports:
+      - "8000:8000"
+
+  worker:
+    <<: *app-common
+    command: celery -A tlearning worker -l info
+
+  beat:
+    <<: *app-common
+    command: celery -A tlearning beat -l info
+
+  mcp:
+    <<: *app-common
+    command: python -m mcp_server --host 0.0.0.0 --port 8765
+    ports:
+      - "8765:8765"
+
+volumes:
+  postgres_data:

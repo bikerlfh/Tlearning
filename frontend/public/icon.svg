@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#4f46e5"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="200" fill="url(#bg)"/>
+  <!-- Open book -->
+  <g transform="translate(512 540)" fill="#ffffff">
+    <!-- Left page -->
+    <path d="M -300 -180 Q -300 -200 -280 -200 L -20 -200 Q 0 -200 0 -180 L 0 180 Q 0 200 -20 200 L -280 200 Q -300 200 -300 180 Z" />
+    <!-- Right page (slightly tinted for depth) -->
+    <path d="M 0 -180 Q 0 -200 20 -200 L 280 -200 Q 300 -200 300 -180 L 300 180 Q 300 200 280 200 L 20 200 Q 0 200 0 180 Z" fill="#e0e7ff"/>
+    <!-- Spine line -->
+    <rect x="-6" y="-200" width="12" height="400" fill="#c7d2fe"/>
+    <!-- Lines of text on left page -->
+    <g fill="#6366f1" opacity="0.6">
+      <rect x="-260" y="-140" width="200" height="14" rx="7"/>
+      <rect x="-260" y="-100" width="160" height="14" rx="7"/>
+      <rect x="-260" y="-60"  width="220" height="14" rx="7"/>
+      <rect x="-260" y="-20"  width="180" height="14" rx="7"/>
+      <rect x="-260" y="20"   width="240" height="14" rx="7"/>
+      <rect x="-260" y="60"   width="200" height="14" rx="7"/>
+      <rect x="-260" y="100"  width="140" height="14" rx="7"/>
+    </g>
+    <!-- Lines of text on right page -->
+    <g fill="#6366f1" opacity="0.4">
+      <rect x="40" y="-140" width="200" height="14" rx="7"/>
+      <rect x="40" y="-100" width="160" height="14" rx="7"/>
+      <rect x="40" y="-60"  width="220" height="14" rx="7"/>
+      <rect x="40" y="-20"  width="180" height="14" rx="7"/>
+      <rect x="40" y="20"   width="240" height="14" rx="7"/>
+      <rect x="40" y="60"   width="200" height="14" rx="7"/>
+      <rect x="40" y="100"  width="140" height="14" rx="7"/>
+    </g>
+  </g>
+  <!-- "T" mark in corner -->
+  <text x="512" y="900" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif"
+        font-size="120" font-weight="800" fill="#ffffff" text-anchor="middle">Tlearning</text>
+</svg>
