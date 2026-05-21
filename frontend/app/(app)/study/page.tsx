@@ -4,10 +4,18 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
+import {
+  cacheQueue,
+  enqueueAnswer,
+  loadCachedQueue,
+  removeCachedCard,
+} from "@/lib/offline-queue";
+import { Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge, TypeBadge } from "@/components/Badges";
+import { speak, ttsAvailable } from "@/lib/tts";
 
 interface ReviewState {
   state: string;
@@ -22,6 +30,7 @@ interface QueueCard {
   lemma: string;
   type: string;
   data: Record<string, unknown>;
+  target_language?: string;
   review_state: ReviewState;
 }
 
@@ -50,13 +59,47 @@ function StudyView() {
   const [current, setCurrent] = useState<QueueCard | null>(null);
   const [bootstrapped, setBootstrapped] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
+  const [offlineCards, setOfflineCards] = useState<QueueCard[]>([]);
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator === "undefined" ? true : navigator.onLine,
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
 
   const queue = useQuery({
     queryKey: ["queue", "session", deckId],
-    queryFn: () => {
+    queryFn: async () => {
       const params = new URLSearchParams({ limit: "20" });
       if (deckId) params.set("deck_id", deckId);
-      return api.get<QueueResult>(`/api/v1/reviews/queue?${params.toString()}`);
+      try {
+        const data = await api.get<QueueResult>(
+          `/api/v1/reviews/queue?${params.toString()}`,
+        );
+        // Cache the live queue for offline fallback (only when not deck-scoped
+        // to avoid contaminating the global offline cache with a partial view).
+        if (!deckId) {
+          try {
+            await cacheQueue(data.results);
+          } catch {
+            /* IndexedDB unavailable — ignore */
+          }
+        }
+        return data;
+      } catch (err) {
+        if (err instanceof ApiError) throw err; // server error — propagate
+        const cached = await loadCachedQueue<QueueCard>();
+        return { count: cached.length, results: cached } satisfies QueueResult;
+      }
     },
     refetchOnMount: true,
   });
@@ -64,19 +107,41 @@ function StudyView() {
   useEffect(() => {
     if (!bootstrapped && queue.data) {
       setCurrent(queue.data.results[0] ?? null);
+      setOfflineCards(queue.data.results.slice(1));
       setBootstrapped(true);
     }
   }, [queue.data, bootstrapped]);
 
   const answer = useMutation({
-    mutationFn: ({ id, rating }: { id: string; rating: number }) =>
-      api.post<AnswerResult>(`/api/v1/reviews/${id}/answer`, { rating }),
-    onSuccess: (data) => {
+    mutationFn: async ({ id, rating }: { id: string; rating: 1 | 2 | 3 | 4 }) => {
+      try {
+        const data = await api.post<AnswerResult>(
+          `/api/v1/reviews/${id}/answer`,
+          { rating },
+        );
+        return { result: data, queued: false as const };
+      } catch (err) {
+        if (err instanceof ApiError) throw err; // server error — propagate
+        // Network failure: queue locally and advance via the cached buffer.
+        await enqueueAnswer(id, rating);
+        await removeCachedCard(id);
+        return { queued: true as const };
+      }
+    },
+    onSuccess: (outcome, vars) => {
       setSessionCount((n) => n + 1);
       setRevealed(false);
-      setCurrent(data.next_card);
       qc.invalidateQueries({ queryKey: ["artifacts"] });
       qc.invalidateQueries({ queryKey: ["queue"] });
+      if (outcome.queued) {
+        setCurrent(offlineCards[0] ?? null);
+        setOfflineCards((cards) => cards.slice(1));
+      } else {
+        const next = outcome.result.next_card;
+        setCurrent(next);
+        // Resync offline buffer to drop the card we just answered
+        setOfflineCards((cards) => cards.filter((c) => c.id !== vars.id));
+      }
     },
   });
 
@@ -87,10 +152,12 @@ function StudyView() {
         e.preventDefault();
         setRevealed(true);
       } else if (revealed && ["1", "2", "3", "4"].includes(e.key)) {
-        const rating = Number.parseInt(e.key, 10);
+        const rating = Number.parseInt(e.key, 10) as 1 | 2 | 3 | 4;
         if (!answer.isPending) {
           answer.mutate({ id: current.id, rating });
         }
+      } else if (e.key.toLowerCase() === "a") {
+        speak(current.lemma, current.target_language ?? null);
       }
     }
     window.addEventListener("keydown", onKey);
@@ -157,6 +224,11 @@ function StudyView() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
+      {!isOnline && (
+        <div className="rounded border border-amber-300 bg-amber-50 text-amber-900 text-xs px-3 py-2">
+          Offline — answers will sync when you&apos;re back online.
+        </div>
+      )}
       <div className="flex justify-between text-sm text-slate-600">
         <span>Session: {sessionCount + 1}</span>
         <span>Cards in queue: {queue.data?.count ?? 0}</span>
@@ -166,7 +238,20 @@ function StudyView() {
           <TypeBadge type={current.type} />
           <StatusBadge status={current.review_state.status} />
         </div>
-        <h1 className="text-3xl font-bold mb-4">{current.lemma}</h1>
+        <div className="flex items-center gap-3 mb-4">
+          <h1 className="text-3xl font-bold">{current.lemma}</h1>
+          {ttsAvailable() && (
+            <button
+              type="button"
+              onClick={() => speak(current.lemma, current.target_language ?? null)}
+              className="text-slate-500 hover:text-indigo-600"
+              aria-label="Speak"
+              title="Speak (A)"
+            >
+              <Volume2 size={20} />
+            </button>
+          )}
+        </div>
         {revealed && (
           <div className="w-full text-center mt-4">
             {meaning && (
