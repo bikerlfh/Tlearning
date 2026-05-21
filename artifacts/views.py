@@ -18,6 +18,17 @@ class ArtifactListCreateView(UserScopedQuerysetMixin, generics.ListCreateAPIView
         ctx["user"] = self.request.user
         return ctx
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        params = self.request.query_params
+        if t := params.get("type"):
+            qs = qs.filter(type=t)
+        if deck := params.get("deck_id"):
+            qs = qs.filter(deck_id=deck)
+        if q := params.get("q"):
+            qs = qs.filter(lemma__icontains=q)
+        return qs
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
