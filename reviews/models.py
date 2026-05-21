@@ -3,7 +3,7 @@ import uuid
 from django.db import models
 from django.utils import timezone
 
-from .enums import FsrsState, ReviewStatus
+from .enums import FsrsState, ReviewRating, ReviewStatus
 
 
 class ReviewState(models.Model):
@@ -32,3 +32,26 @@ class ReviewState(models.Model):
 
     def __str__(self) -> str:
         return f"{self.artifact.lemma} [{self.state}/{self.status}]"
+
+
+class ReviewLog(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    artifact = models.ForeignKey(
+        "artifacts.Artifact",
+        on_delete=models.CASCADE,
+        related_name="review_logs",
+    )
+    reviewed_at = models.DateTimeField()
+    rating = models.PositiveSmallIntegerField(choices=ReviewRating.choices)
+    elapsed_days = models.FloatField()
+    scheduled_days = models.FloatField()
+    state_before = models.CharField(max_length=16, choices=FsrsState.choices)
+
+    class Meta:
+        ordering = ["-reviewed_at"]
+        indexes = [
+            models.Index(fields=["artifact", "-reviewed_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.artifact.lemma} @ {self.reviewed_at:%Y-%m-%d %H:%M} ({self.rating})"
