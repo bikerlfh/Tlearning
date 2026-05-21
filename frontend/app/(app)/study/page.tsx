@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -41,16 +42,22 @@ const RATING_BUTTONS: Array<{ rating: 1 | 2 | 3 | 4; label: string; color: strin
   { rating: 4, label: "Easy", color: "bg-cyan-600 hover:bg-cyan-700" },
 ];
 
-export default function StudyPage() {
+function StudyView() {
   const qc = useQueryClient();
+  const searchParams = useSearchParams();
+  const deckId = searchParams.get("deck_id");
   const [revealed, setRevealed] = useState(false);
   const [current, setCurrent] = useState<QueueCard | null>(null);
   const [bootstrapped, setBootstrapped] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
 
   const queue = useQuery({
-    queryKey: ["queue", "session"],
-    queryFn: () => api.get<QueueResult>("/api/v1/reviews/queue?limit=20"),
+    queryKey: ["queue", "session", deckId],
+    queryFn: () => {
+      const params = new URLSearchParams({ limit: "20" });
+      if (deckId) params.set("deck_id", deckId);
+      return api.get<QueueResult>(`/api/v1/reviews/queue?${params.toString()}`);
+    },
     refetchOnMount: true,
   });
 
@@ -88,6 +95,42 @@ export default function StudyPage() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, [revealed, current, answer]);
+
+  // Swipe-to-rate on touch devices (only after the card is revealed).
+  // left = Again(1), right = Good(3), up = Easy(4), down = Hard(2).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(min-width: 768px)").matches) return;
+    if (!revealed || !current) return;
+
+    let startX = 0;
+    let startY = 0;
+    const THRESHOLD = 50;
+
+    function onStart(e: PointerEvent) {
+      startX = e.clientX;
+      startY = e.clientY;
+    }
+    function onEnd(e: PointerEvent) {
+      if (!current || answer.isPending) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (Math.abs(dx) < THRESHOLD && Math.abs(dy) < THRESHOLD) return;
+      let rating: 1 | 2 | 3 | 4;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        rating = dx < 0 ? 1 : 3;
+      } else {
+        rating = dy < 0 ? 4 : 2;
+      }
+      answer.mutate({ id: current.id, rating });
+    }
+    window.addEventListener("pointerdown", onStart);
+    window.addEventListener("pointerup", onEnd);
+    return () => {
+      window.removeEventListener("pointerdown", onStart);
+      window.removeEventListener("pointerup", onEnd);
+    };
   }, [revealed, current, answer]);
 
   if (queue.isLoading) {
@@ -168,5 +211,13 @@ export default function StudyPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function StudyPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-slate-500">Loading…</p>}>
+      <StudyView />
+    </Suspense>
   );
 }
