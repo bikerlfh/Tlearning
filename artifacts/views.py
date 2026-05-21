@@ -43,3 +43,14 @@ class ArtifactListCreateView(UserScopedQuerysetMixin, generics.ListCreateAPIView
         )
         out = self.get_serializer(artifact).data
         return Response(out, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+class ArtifactDetailView(UserScopedQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
+    queryset = Artifact.objects.select_related("deck")
+    serializer_class = ArtifactSerializer
+    lookup_field = "pk"
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["user"] = self.request.user
+        return ctx
