@@ -105,3 +105,27 @@ class TestPostArtifact:
         )
         assert response.status_code == 400
         assert "data" in response.json()
+
+    def test_post_idiom_succeeds(self, authed_client, user):
+        from decks.models import Deck
+
+        deck = Deck.objects.filter(user=user, is_default=True).first()
+        response = authed_client.post(
+            "/api/v1/artifacts",
+            {
+                "deck_id": str(deck.id),
+                "type": "idiom",
+                "lemma": "to break the ice",
+                "source_language": "en",
+                "target_language": "es",
+                "data": {
+                    "meaning": "to start a conversation in a social setting",
+                    "literal_translation": "romper el hielo",
+                    "register": "neutral",
+                    "examples": ["He told a joke to break the ice."],
+                },
+            },
+            format="json",
+        )
+        assert response.status_code == 201, response.json()
+        assert response.json()["data"]["literal_translation"] == "romper el hielo"

@@ -40,9 +40,17 @@ class PhrasalVerbData(BaseModel):
     register: RegisterLevel | None = None
 
 
+class IdiomData(BaseModel):
+    meaning: str = Field(..., min_length=1)
+    literal_translation: str | None = None
+    examples: list[str] = []
+    register: RegisterLevel | None = None
+
+
 SCHEMA_BY_TYPE: dict[ArtifactType, type[BaseModel]] = {
     ArtifactType.WORD: WordData,
     ArtifactType.PHRASAL_VERB: PhrasalVerbData,
+    ArtifactType.IDIOM: IdiomData,
 }
 
 
