@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "accounts",
     "decks",
     "artifacts",
+    "reviews",
     "api",
 ]
 
