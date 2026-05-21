@@ -167,3 +167,28 @@ def mark_as_known(lemma: str) -> dict[str, Any]:
         "lemma": artifact.lemma,
         "status": rs.status,
     }
+
+
+def list_due_today(limit: int = 20) -> list[dict[str, Any]]:
+    """List the user's review cards that are currently due.
+    Use when the user asks 'what do I need to study?' or 'what's pending?'.
+    Returns up to `limit` cards in priority order (learning → review → new).
+    """
+    from reviews.views import _due_queue
+
+    user = current_user()
+    if user is None:
+        raise LookupError("No authenticated user in context")
+    qs = _due_queue(user)[:limit]
+    return [
+        {
+            "id": str(rs.artifact.id),
+            "lemma": rs.artifact.lemma,
+            "type": rs.artifact.type,
+            "data": rs.artifact.data,
+            "state": rs.state,
+            "status": rs.status,
+            "due_at": rs.due_at.isoformat(),
+        }
+        for rs in qs
+    ]
