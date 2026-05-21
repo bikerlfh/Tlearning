@@ -3,6 +3,8 @@ from django.urls import path
 from .views import (
     ApiTokenDeleteView,
     ApiTokenListCreateView,
+    GoogleBeginView,
+    GoogleCallbackView,
     LoginView,
     LogoutView,
     MeView,
@@ -16,4 +18,6 @@ urlpatterns = [
     path("me", MeView.as_view()),
     path("api-tokens", ApiTokenListCreateView.as_view()),
     path("api-tokens/<uuid:pk>", ApiTokenDeleteView.as_view()),
+    path("google/begin", GoogleBeginView.as_view()),
+    path("google/callback", GoogleCallbackView.as_view()),
 ]
