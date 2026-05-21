@@ -7,4 +7,5 @@ urlpatterns = [
     path("auth/", include("accounts.urls")),
     path("", include("decks.urls")),
     path("", include("artifacts.urls")),
+    path("", include("reviews.urls")),
 ]
