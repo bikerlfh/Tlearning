@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import generics, status
 from rest_framework.response import Response
 
@@ -26,7 +27,7 @@ class ArtifactListCreateView(UserScopedQuerysetMixin, generics.ListCreateAPIView
         if deck := params.get("deck_id"):
             qs = qs.filter(deck_id=deck)
         if q := params.get("q"):
-            qs = qs.filter(lemma__icontains=q)
+            qs = qs.filter(Q(lemma__icontains=q) | Q(data__meaning__icontains=q))
         if src := params.get("source_language"):
             qs = qs.filter(source_language=src)
         if tgt := params.get("target_language"):
