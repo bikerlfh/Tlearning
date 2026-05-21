@@ -12,6 +12,7 @@ class ArtifactSerializer(serializers.ModelSerializer):
     deck_id = serializers.PrimaryKeyRelatedField(
         source="deck", queryset=Deck.objects.all(), write_only=True
     )
+    status = serializers.SerializerMethodField()
 
     class Meta:
         model = Artifact
@@ -25,10 +26,15 @@ class ArtifactSerializer(serializers.ModelSerializer):
             "target_language",
             "data",
             "source",
+            "status",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "deck", "source", "created_at", "updated_at"]
+        read_only_fields = ["id", "deck", "source", "status", "created_at", "updated_at"]
+
+    def get_status(self, obj):
+        rs = getattr(obj, "review_state", None)
+        return rs.status if rs else None
 
     def validate_deck_id(self, value: Deck) -> Deck:
         user = self.context.get("user") or self.context["request"].user

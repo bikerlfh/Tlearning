@@ -13,7 +13,7 @@ from .serializers import ArtifactSerializer
 
 
 class ArtifactListCreateView(UserScopedQuerysetMixin, generics.ListCreateAPIView):
-    queryset = Artifact.objects.select_related("deck")
+    queryset = Artifact.objects.select_related("deck", "review_state")
     serializer_class = ArtifactSerializer
 
     def get_serializer_context(self):
@@ -34,6 +34,8 @@ class ArtifactListCreateView(UserScopedQuerysetMixin, generics.ListCreateAPIView
             qs = qs.filter(source_language=src)
         if tgt := params.get("target_language"):
             qs = qs.filter(target_language=tgt)
+        if st := params.get("status"):
+            qs = qs.filter(review_state__status=st)
         return qs
 
     def create(self, request, *args, **kwargs):
@@ -64,7 +66,7 @@ class ArtifactListCreateView(UserScopedQuerysetMixin, generics.ListCreateAPIView
 
 
 class ArtifactDetailView(UserScopedQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
-    queryset = Artifact.objects.select_related("deck")
+    queryset = Artifact.objects.select_related("deck", "review_state")
     serializer_class = ArtifactSerializer
     lookup_field = "pk"
 
