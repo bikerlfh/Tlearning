@@ -156,6 +156,20 @@ Push notifications post a click-through ping to `POST /api/v1/notifications/{log
 
 `/study` shows a speaker icon next to the lemma and binds the `A` key to it. Uses the browser's built-in Web Speech API (no extra dependency or cost). Voice is picked by mapping the artifact's `target_language` (e.g. `es`) to a BCP-47 tag (`es-ES`).
 
+## Deployment
+
+Live URLs (once Phase 12 provisioning is complete):
+
+- **App**: <https://app.tlearning.app>
+- **API + admin + MCP**: <https://api.tlearning.app>
+
+Push to `main` triggers two independent deploys:
+
+1. Backend → Fly.io via `.github/workflows/deploy-backend.yml` (`tlearning-api` app with three process groups: `web`, `worker`, `beat`).
+2. Frontend → Vercel via the Git integration on the `frontend/` root.
+
+First-time provisioning + custom domains + rollback procedures live in `docs/runbooks/deploy.md`.
+
 ## Observability
 
 ### Sentry

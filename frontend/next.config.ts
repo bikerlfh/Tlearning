@@ -21,6 +21,17 @@ const withPWA = nextPWA({
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  async redirects() {
+    // Marketing apex domain → PWA subdomain. No-op in local dev (host won't match).
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "tlearning.app" }],
+        destination: "https://app.tlearning.app/:path*",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 // Compose: Sentry wraps PWA wraps the base config. Source map upload runs only
